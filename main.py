@@ -1,5 +1,5 @@
 from router import route_file
-
+from pipelines.rag_pipeline import run_rag
 from pipelines.sql_pipeline import (
     load_csv_to_sqlite,
     get_schema,
@@ -76,8 +76,25 @@ if pipeline == "sql_pipeline":
 
 elif pipeline == "rag_pipeline":
 
+    question = input(
+        "\nEnter question: "
+    )
+
+    answer = run_rag(
+        file_path,
+        question
+    )
+
     print(
-        "RAG pipeline selected"
+        "\nANSWER"
+    )
+
+    print(
+        "=" * 50
+    )
+
+    print(
+        answer
     )
 
 else:

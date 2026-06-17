@@ -268,6 +268,84 @@ def rerank_chunks(
         chunk
         for chunk, score in ranked[:top_k]
     ]
+from pathlib import Path
+from llm import call_llm
+
+def run_rag(file_path, query):
+
+    ext = Path(file_path).suffix.lower()
+
+    if ext == ".pdf":
+
+        from loaders.pdf_loader import (
+            ingest_pdf,
+            chunk_document
+        )
+
+        doc = ingest_pdf(file_path)
+
+        chunks = chunk_document(
+            doc,
+            os.path.basename(file_path)
+        )
+
+    elif ext == ".docx":
+
+        from loaders.docx_loader import (
+            ingest_docx,
+            chunk_docx
+        )
+
+        text = ingest_docx(file_path)
+
+        chunks = chunk_docx(
+            text,
+            os.path.basename(file_path)
+        )
+
+    else:
+
+        raise ValueError(
+            f"Unsupported RAG file type: {ext}"
+        )
+
+    store_chunks(chunks)
+
+    results = hybrid_retrieve(
+        query,
+        chunks
+    )
+
+    expanded = expand_context(
+        results,
+        chunks
+    )
+
+    reranked = rerank_chunks(
+        query,
+        expanded,
+        top_k=5
+    )
+
+    context = "\n\n".join(
+        chunk["text"]
+        for chunk in reranked
+    )
+
+    prompt = f"""
+Answer the question using ONLY the context below.
+
+Question:
+{query}
+
+Context:
+{context}
+
+Answer:
+"""
+
+    return call_llm(prompt)
+
 
 if __name__ == "__main__":
 

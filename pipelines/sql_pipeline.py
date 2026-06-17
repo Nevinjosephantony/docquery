@@ -4,8 +4,27 @@ import sqlite3
 from llm import call_llm
 
 
+from pathlib import Path
+import pandas as pd
+import sqlite3
+
 def load_csv_to_sqlite(filepath):
-    df = pd.read_csv(filepath)
+
+    ext = Path(filepath).suffix.lower()
+
+    if ext == ".csv":
+
+        df = pd.read_csv(filepath)
+
+    elif ext == ".xlsx":
+
+        df = pd.read_excel(filepath)
+
+    else:
+
+        raise ValueError(
+            f"Unsupported file type: {ext}"
+        )
 
     conn = sqlite3.connect(":memory:")
 
@@ -17,8 +36,6 @@ def load_csv_to_sqlite(filepath):
     )
 
     return conn
-
-
 def get_schema(conn):
     cursor = conn.cursor()
 
