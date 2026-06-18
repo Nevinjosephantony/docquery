@@ -84,6 +84,7 @@ def store_chunks(
 
 def retrieve(
     query,
+    source_file,
     collection_name="documents",
     top_k=3
 ):
@@ -97,11 +98,10 @@ def retrieve(
     )
 
     results = collection.query(
-        query_embeddings=[
-            query_embedding
-        ],
-        n_results=top_k
-    )
+    query_embeddings=[query_embedding],
+    n_results=top_k,
+    where={"source": {"$in": source_file.split(",")}}
+)
 
     chunks = results["documents"][0]
 
@@ -159,13 +159,15 @@ def bm25_retrieve(
 def hybrid_retrieve(
     query,
     chunks,
+    source_file,
     top_k=5
 ):
 
     vector_results = retrieve(
-        query,
-        top_k=top_k
-    )
+    query,
+    source_file,
+    top_k=top_k
+)
 
     bm25_results = bm25_retrieve(
         query,
@@ -271,66 +273,31 @@ def rerank_chunks(
 from pathlib import Path
 from llm import call_llm
 
-def run_rag(file_path, query):
-
+def ingest_document(file_path):
     ext = Path(file_path).suffix.lower()
 
     if ext == ".pdf":
-
-        from loaders.pdf_loader import (
-            ingest_pdf,
-            chunk_document
-        )
-
+        from loaders.pdf_loader import ingest_pdf, chunk_document
         doc = ingest_pdf(file_path)
-
-        chunks = chunk_document(
-            doc,
-            os.path.basename(file_path)
-        )
+        chunks = chunk_document(doc, os.path.basename(file_path))
 
     elif ext == ".docx":
-
-        from loaders.docx_loader import (
-            ingest_docx,
-            chunk_docx
-        )
-
-        text = ingest_docx(file_path)
-
-        chunks = chunk_docx(
-            text,
-            os.path.basename(file_path)
-        )
+        from loaders.docx_loader import ingest_docx, chunk_docx
+        doc = ingest_docx(file_path)
+        chunks = chunk_docx(doc, os.path.basename(file_path))
 
     else:
-
-        raise ValueError(
-            f"Unsupported RAG file type: {ext}"
-        )
+        raise ValueError(f"Unsupported RAG file type: {ext}")
 
     store_chunks(chunks)
+    return chunks
 
-    results = hybrid_retrieve(
-        query,
-        chunks
-    )
 
-    expanded = expand_context(
-        results,
-        chunks
-    )
-
-    reranked = rerank_chunks(
-        query,
-        expanded,
-        top_k=5
-    )
-
-    context = "\n\n".join(
-        chunk["text"]
-        for chunk in reranked
-    )
+def ask_question(query, chunks, source_file):
+    results = hybrid_retrieve(query, chunks, source_file)
+    expanded = expand_context(results, chunks)
+    reranked = rerank_chunks(query, expanded, top_k=5)
+    context = "\n\n".join(chunk["text"] for chunk in reranked)
 
     prompt = f"""
 Answer the question using ONLY the context below.
@@ -343,9 +310,12 @@ Context:
 
 Answer:
 """
-
     return call_llm(prompt)
 
+
+def run_rag(file_path, query):
+    chunks = ingest_document(file_path)
+    return ask_question(query, chunks, os.path.basename(file_path))
 
 if __name__ == "__main__":
 

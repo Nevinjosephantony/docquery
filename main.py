@@ -1,5 +1,5 @@
 from router import route_file
-from pipelines.rag_pipeline import run_rag
+from pipelines.rag_pipeline import run_rag, ingest_document, ask_question
 from pipelines.sql_pipeline import (
     load_csv_to_sqlite,
     get_schema,
@@ -10,118 +10,47 @@ from pipelines.sql_pipeline import (
     generate_answer
 )
 
-file_path = input("Enter file path: ")
+file_inputs = input("Enter file path(s), comma separated: ")
+file_paths = [f.strip() for f in file_inputs.split(",")]
 
-pipeline = route_file(file_path)
+all_rag_chunks = []
+sql_connections = []
 
-if pipeline == "sql_pipeline":
+for file_path in file_paths:
+    pipeline = route_file(file_path)
 
-    conn = load_csv_to_sqlite(
-        file_path
+    if pipeline == "rag_pipeline":
+        chunks = ingest_document(file_path)
+        all_rag_chunks.extend(chunks)
+
+    elif pipeline == "sql_pipeline":
+        conn = load_csv_to_sqlite(file_path)
+        sql_connections.append((file_path, conn))
+
+    else:
+        print(f"Skipping unsupported file: {file_path}")
+
+question = input("\nEnter question: ")
+
+# RAG answer
+if all_rag_chunks:
+    # pass all sources as comma joined string
+    all_sources = ",".join(
+        list(set(c["metadata"]["source"] for c in all_rag_chunks))
     )
+    answer = ask_question(question, all_rag_chunks, all_sources)
+    print("\nANSWER (Documents)")
+    print("=" * 50)
+    print(answer)
 
-    schema = get_schema(
-        conn
-    )
-
-    schema_text = schema_to_text(
-        schema
-    )
-
-    print(schema_text)
-
-    question = input(
-        "\nEnter question: "
-    )
-
-    sql_query = generate_sql(
-        question,
-        schema_text
-    )
-
-    sql_query = clean_sql(
-        sql_query
-    )
-
-    print(
-        "\nGenerated SQL:"
-    )
-
-    print(
-        sql_query
-    )
-
-    results = execute_sql(
-        conn,
-        sql_query
-    )
-
-    answer = generate_answer(
-        question,
-        sql_query,
-        results
-    )
-
-    print(
-        "\nANSWER"
-    )
-
-    print(
-        "=" * 50
-    )
-
-    print(
-        answer
-    )
-
-elif pipeline == "rag_pipeline":
-
-    question = input(
-        "\nEnter question: "
-    )
-
-    answer = run_rag(
-        file_path,
-        question
-    )
-
-    print(
-        "\nANSWER"
-    )
-
-    print(
-        "=" * 50
-    )
-
-    print(
-        answer
-    )
-
-else:
-
-    print(
-        "Unsupported file type"
-    )
-
-def generate_answer(
-    question,
-    sql_query,
-    results
-):
-
-    prompt = f"""
-Question:
-{question}
-
-SQL Query:
-{sql_query}
-
-Query Results:
-{results}
-
-Answer the question in natural language.
-"""
-
-    return call_llm(
-        prompt
-    )
+# SQL answer
+for file_path, conn in sql_connections:
+    schema = get_schema(conn)
+    schema_text = schema_to_text(schema)
+    sql_query = generate_sql(question, schema_text)
+    sql_query = clean_sql(sql_query)
+    results = execute_sql(conn, sql_query)
+    answer = generate_answer(question, sql_query, results)
+    print(f"\nANSWER ({file_path})")
+    print("=" * 50)
+    print(answer)
