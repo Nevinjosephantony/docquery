@@ -1,5 +1,5 @@
 from router import route_file
-from pipelines.rag_pipeline import run_rag, ingest_document, ask_question
+from pipelines.rag_pipeline import ingest_document, ask_question
 from pipelines.sql_pipeline import (
     load_csv_to_sqlite,
     get_schema,
@@ -32,16 +32,15 @@ for file_path in file_paths:
 
 question = input("\nEnter question: ")
 
-# RAG answer
+
 if all_rag_chunks:
-    # pass all sources as comma joined string
-    all_sources = ",".join(
-        list(set(c["metadata"]["source"] for c in all_rag_chunks))
-    )
+    sources = list(set(c["metadata"]["source"] for c in all_rag_chunks))
+    all_sources = ",".join(sources)
     answer = ask_question(question, all_rag_chunks, all_sources)
-    print("\nANSWER (Documents)")
+    print("\nANSWER")
     print("=" * 50)
     print(answer)
+
 
 # SQL answer
 for file_path, conn in sql_connections:
@@ -54,3 +53,4 @@ for file_path, conn in sql_connections:
     print(f"\nANSWER ({file_path})")
     print("=" * 50)
     print(answer)
+

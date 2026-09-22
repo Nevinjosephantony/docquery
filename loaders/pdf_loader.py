@@ -74,7 +74,7 @@ def _make_chunk(index, text, h1, h2, source):
     section = h2 if h2 else h1
     clean_text = text.replace("<!-- image -->", "").strip()
     return {
-        "chunk_id": f"chunk_{index}",
+        "chunk_id": f"{source}_chunk_{index}",
         "text": clean_text,
         "metadata": {
             "source": source,

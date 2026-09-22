@@ -7,7 +7,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MXBAI_API_KEY = os.getenv("MXBAI_API_KEY")
 
 EMBEDDING_MODEL = "mixedbread-ai/mxbai-embed-large-v1"
-LLM_MODEL = "llama-3.3-70b-versatile"
+LLM_MODEL = "openai/gpt-oss-20b"
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 
 VECTOR_DB_PATH = "output/vectordb"
