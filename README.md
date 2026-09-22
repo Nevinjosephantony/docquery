@@ -4,6 +4,9 @@ DocQuery is a Retrieval-Augmented Generation (RAG) application that allows users
 
 The application extracts text from documents, creates embeddings, stores them in ChromaDB, retrieves relevant sections for a user query, and uses an LLM to generate an answer grounded in the retrieved context.
 
+## Application
+
+![DocQuery Application](screenshots/docquery.png)
 ## Features
 
 * PDF and DOCX document ingestion
@@ -259,3 +262,4 @@ Never commit credentials or private documents to the repository.
 ## License
 
 This project is intended as a personal/academic project. No open-source license has currently been specified.
+
